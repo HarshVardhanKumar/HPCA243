@@ -820,9 +820,8 @@ namespace L2C_PREF {
 									FILTER_REQUEST f_level = (perc_sum >= PERC_THRESHOLD_HI) ? SPP_L2C_PREFETCH : SPP_LLC_PREFETCH;
 
 									if (FILTER.check(pf_address, address, ip, f_level, pf_offset,perc_sum, this->pattern_len-1)) {
-										//std::cout<<"hello world"<<endl;
 											filee<<"prefetched with pf_address "<<pf_address<<endl;
-											cache->prefetch_line(ip, base_addr, pf_address, FILL_L2, 5);         // cache prefetch issued
+											cache->prefetch_line(ip, base_addr, pf_address, pattern[pf_offset], 5);         // cache prefetch issued
 									// assert(ok == 1);
 											pf_issued += 1;
 											pattern[pf_offset] = 0;
