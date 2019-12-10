@@ -1197,7 +1197,7 @@ void CACHE::l2c_prefetcher_initialize() {
     L2C_PREF::prefetchers = vector<L2C_PREF::Bingo>(NUM_CPUS, L2C_PREF::Bingo(REGION_SIZE >> LOG2_BLOCK_SIZE, MIN_ADDR_WIDTH, MAX_ADDR_WIDTH, PC_WIDTH, FT_SIZE,AT_SIZE, PHT_SIZE, PHT_WAYS, PF_STREAMER_SIZE, L2C_PREF::DEBUG_LEVEL));
 }
 
-uint32_t l2c_spp_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in){
+void l2c_spp_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in){
 
     uint64_t page = addr >> LOG2_PAGE_SIZE;
     uint32_t page_offset = (addr >> LOG2_BLOCK_SIZE) & (PAGE_SIZE / BLOCK_SIZE - 1),
@@ -1351,11 +1351,10 @@ uint32_t l2c_spp_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit,
     } while (do_lookahead);
 #endif
 
-    return metadata_in;
 }
 
 
-uint32_t l2c_bingo_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in){
+void l2c_bingo_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in){
 
 /*if (type != LOAD)
     return;
@@ -1393,23 +1392,18 @@ uint32_t l2c_bingo_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hi
     /* issue prefetches */
     L2C_PREF::prefetchers[cpu].prefetch(this, block_number, addr,ip,depth);
 
-
-//1st method, we choose btw spp and bingo based on the perc confidence value
-//2nd method, based on the useful ptr, switch btw the two-bingo and spp- when this ptr is zero (prefetch non useful) FAIT
-//3rd method, prefetch the two suggestions and so weights for the two methods will be updated (either we use same table (need to check policy of replacement there) or one larger)
-
-
-
-
-
-
     if (L2C_PREF::DEBUG_LEVEL >= 3) {
         L2C_PREF::prefetchers[cpu].log();
         cerr << "=======================================" << dec << endl;
     }
-    return metadata_in;
 
 }
+
+//1st method, we choose btw spp and bingo based on the perc confidence value
+
+//2nd method, based on the useful ptr, switch btw the two-bingo and spp- when this ptr is zero (prefetch non useful) FAIT
+
+//3rd method, prefetch the two suggestions and so weights for the two methods will be updated (either we use same table (need to check policy of replacement there) or one larger)
 
 
 uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in){
@@ -1424,6 +1418,7 @@ uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache
             GHR.SppVSBingo=0;
         }
     }
+    return metadata_in;
 }
 
 uint32_t CACHE::l2c_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t match, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in) {
