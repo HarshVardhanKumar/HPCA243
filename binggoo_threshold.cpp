@@ -1418,6 +1418,8 @@ void l2c_bingo_prefetch_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, u
 //2nd method, based on the useful ptr, switch btw the two-bingo and spp- when this ptr is zero (prefetch non useful) FAIT
 
 //3rd method, prefetch the two suggestions and so weights for the two methods will be updated (either we use same table (need to check policy of replacement there) or one larger)
+#define l2c_prefetcher_cache_fill_Bingo;
+#define l2c_prefetcher_cache_fill_Spp;
 
 int pSpp=0;
 uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache_hit, uint8_t type, uint32_t metadata_in){
@@ -1426,24 +1428,45 @@ uint32_t CACHE::l2c_prefetcher_operate(uint64_t addr, uint64_t ip, uint8_t cache
     pB=pB[0].p;
     if(pSpp>pB){
       pSpp=l2c_bingo_prefetch_operate(addr,ip, cache_hit, type, metadata_in);
+      #undef l2c_prefetcher_cache_fill_Spp;
     }else{
       l2c_spp_prefetch_operate(addr,ip, cache_hit, type, metadata_in);
+      #undef l2c_prefetcher_cache_fill_Bingo;
     }
 
     return metadata_in;
 }
 
+void l2c_prefetcher_cache_fill_Bingo(uint64_t addr, uint32_t set, uint32_t match, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in) {
+  uint64_t evicted_block_number = evicted_addr >> LOG2_BLOCK_SIZE;
+  uint32_t way = match ;
+  if (this->block[set][way].valid == 0)
+    return;  /* no eviction */
+
+/* inform all sms modules of the eviction */
+  for (int i = 0; i < NUM_CPUS; i += 1)
+  L2C_PREF::prefetchers[i].eviction(evicted_block_number);
+//FILTER.check(evicted_addr, 0, 0, L2C_EVICT, 0, 0, 0); //   needs modification.
+}
+
+void l2c_prefetcher_cache_fill_Spp(uint64_t addr, uint32_t set, uint32_t match, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in)
+{
+
+#ifdef FILTER_ON
+    SPP_DP (cout << endl;);
+    FILTER.check(evicted_addr, 0, 0, L2C_EVICT, 0, 0, 0, 0, 0, 0);
+#endif
+
+}
+
 uint32_t CACHE::l2c_prefetcher_cache_fill(uint64_t addr, uint32_t set, uint32_t match, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in) {
-    uint64_t evicted_block_number = evicted_addr >> LOG2_BLOCK_SIZE;
-    uint32_t way = match ;
-    if (this->block[set][way].valid == 0)
-    return 0;  /* no eviction */
-
-    /* inform all sms modules of the eviction */
-    for (int i = 0; i < NUM_CPUS; i += 1)
-    L2C_PREF::prefetchers[i].eviction(evicted_block_number);
-
-    FILTER.check(evicted_addr, 0, 0, L2C_EVICT, 0, 0, 0); //   needs modification.
+  #ifdef l2c_prefetcher_cache_fill_Spp
+    l2c_prefetcher_cache_fill_Spp(uint64_t addr, uint32_t set, uint32_t match, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in);
+  #endif
+  #ifdef l2c_prefetcher_cache_fill_Bingo
+  l2c_prefetcher_cache_fill_Bingo(uint64_t addr, uint32_t set, uint32_t match, uint8_t prefetch, uint64_t evicted_addr, uint32_t metadata_in);
+  #endif
+  return metadata_in;
 }
 
 void CACHE::l2c_prefetcher_final_stats() {}
